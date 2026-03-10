@@ -2,13 +2,17 @@ import React, { useState, useEffect } from "react";
 import QRCodeGenerator from "./components/QRCodeGenerator";
 import History from "./components/History";
 import { QRCodeData } from "./types";
-import { QrCode, Sparkles, Github, Moon, Sun } from "lucide-react";
+import { QrCode, Sparkles, Moon, Sun } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
   const [history, setHistory] = useState<QRCodeData[]>([]);
   const [activeTab, setActiveTab] = useState<"generate" | "history">("generate");
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved) return saved === "dark";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  });
 
   const fetchHistory = async () => {
     try {
@@ -31,16 +35,15 @@ export default function App() {
 
   useEffect(() => {
     fetchHistory();
-    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      setIsDark(true);
-    }
   }, []);
 
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
     } else {
       document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
     }
   }, [isDark]);
 
@@ -80,20 +83,12 @@ export default function App() {
             </nav>
 
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 onClick={() => setIsDark(!isDark)}
                 className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 transition-colors"
               >
                 {isDark ? <Sun size={20} /> : <Moon size={20} />}
               </button>
-              <a 
-                href="https://github.com" 
-                target="_blank" 
-                rel="noreferrer"
-                className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 transition-colors"
-              >
-                <Github size={20} />
-              </a>
             </div>
           </div>
         </div>

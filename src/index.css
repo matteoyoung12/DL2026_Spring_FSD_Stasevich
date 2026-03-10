@@ -1,1 +1,22 @@
 @import "tailwindcss";
+
+@theme {
+  --color-dark: #09090b;
+}
+
+/* Dark mode support */
+@variant dark (&:where(.dark, .dark *));
+
+/* Smooth theme transition */
+html {
+  color-scheme: light dark;
+}
+
+html,
+html *,
+html *::before,
+html *::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}

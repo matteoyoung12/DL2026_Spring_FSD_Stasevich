@@ -40,8 +40,11 @@ export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
   const [showFgPicker, setShowFgPicker] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   // Generate QR Content based on type
   const getFinalContent = () => {
@@ -148,17 +151,28 @@ export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
     }
   };
 
-  const handleDownload = (format: "png" | "svg") => {
+  const handleDownload = async (format: "png" | "svg") => {
+    if (!qrUrl) return;
+    
+    setIsDownloading(true);
+    
+    // Анимация перед скачиванием
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
     const link = document.createElement("a");
     link.download = `qrcraft-${Date.now()}.${format}`;
     link.href = qrUrl;
     link.click();
+    
+    setTimeout(() => setIsDownloading(false), 500);
   };
 
   const handleSave = async () => {
     const finalContent = getFinalContent();
     const id = Math.random().toString(36).substring(2, 10);
-    
+
+    setIsSaving(true);
+
     try {
       const res = await fetch("/api/qr", {
         method: "POST",
@@ -170,11 +184,16 @@ export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
           config
         })
       });
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       if (res.ok) {
         onSave();
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -309,12 +328,34 @@ export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
             <h2>Внешний вид</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Error Correction Level - Moved to top */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Уровень коррекции (L-H)</label>
+              <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+                {["L", "M", "Q", "H"].map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => setConfig({ ...config, level: l as any })}
+                    className={cn(
+                      "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all",
+                      config.level === l 
+                        ? "bg-white dark:bg-zinc-700 shadow-sm text-indigo-600 dark:text-indigo-400" 
+                        : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                    )}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Color Pickers */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Foreground Color */}
               <div className="space-y-2 relative">
-                <label className="text-sm font-medium">Цвет кода</label>
-                <button 
+                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Цвет кода</label>
+                <button
                   onClick={() => { setShowFgPicker(!showFgPicker); setShowBgPicker(false); }}
                   className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                 >
@@ -326,7 +367,7 @@ export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
                 </button>
                 <AnimatePresence>
                   {showFgPicker && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
@@ -340,8 +381,8 @@ export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
 
               {/* Background Color */}
               <div className="space-y-2 relative">
-                <label className="text-sm font-medium">Цвет фона</label>
-                <button 
+                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Цвет фона</label>
+                <button
                   onClick={() => { setShowBgPicker(!showBgPicker); setShowFgPicker(false); }}
                   className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                 >
@@ -353,7 +394,7 @@ export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
                 </button>
                 <AnimatePresence>
                   {showBgPicker && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
@@ -363,26 +404,6 @@ export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Уровень коррекции (L-H)</label>
-                <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-lg">
-                  {["L", "M", "Q", "H"].map((l) => (
-                    <button
-                      key={l}
-                      onClick={() => setConfig({ ...config, level: l as any })}
-                      className={cn(
-                        "flex-1 py-1 rounded-md text-xs font-bold transition-all",
-                        config.level === l ? "bg-white dark:bg-zinc-700 shadow-sm" : "text-zinc-500"
-                      )}
-                    >
-                      {l}
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
@@ -430,38 +451,102 @@ export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
       <div className="lg:col-span-5">
         <div className="sticky top-8 space-y-6">
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-8 shadow-xl flex flex-col items-center justify-center min-h-[400px]">
-            <div className="relative group">
+            <div className="relative group" ref={previewRef}>
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
+                animate={{ 
+                  scale: isDownloading || isSaving ? 0.95 : 1, 
+                  opacity: isDownloading || isSaving ? 0.8 : 1,
+                }}
+                transition={{ 
+                  duration: 0.3,
+                  ease: "easeInOut"
+                }}
                 key={qrUrl}
-                className="p-6 rounded-3xl shadow-2xl border border-zinc-100 dark:border-zinc-800 transition-all duration-300"
+                className={cn(
+                  "p-6 rounded-3xl shadow-2xl border border-zinc-100 dark:border-zinc-800 transition-all duration-300",
+                  (isDownloading || isSaving) && "ring-4 ring-indigo-500/30 scale-95"
+                )}
                 style={{ backgroundColor: config.bgColor }}
               >
-                {qrUrl ? (
-                  <img src={qrUrl} alt="QR Code" className="w-64 h-64 object-contain" />
-                ) : (
+                <motion.img 
+                  src={qrUrl || ""} 
+                  alt="QR Code" 
+                  className="w-64 h-64 object-contain"
+                  animate={(isDownloading || isSaving) ? {
+                    scale: [1, 1.05, 1],
+                    rotate: [0, -5, 5, 0],
+                  } : {}}
+                  transition={{ duration: 0.4 }}
+                />
+                {!qrUrl && (
                   <div className="w-64 h-64 bg-zinc-50 dark:bg-zinc-950 rounded-xl flex items-center justify-center border-2 border-dashed border-zinc-200 dark:border-zinc-800">
                     <p className="text-zinc-400 text-sm text-center px-8">Введите данные для генерации кода</p>
                   </div>
                 )}
               </motion.div>
+
+              {/* Анимация скачивания/сохранения - overlay */}
+              <AnimatePresence>
+                {(isDownloading || isSaving) && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                  >
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1.2 }}
+                      exit={{ scale: 1.5, opacity: 0 }}
+                      className="w-20 h-20 bg-emerald-600 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: isDownloading ? '#4f46e5' : '#059669' }}
+                    >
+                      {isDownloading ? (
+                        <Download size={32} className="text-white" />
+                      ) : (
+                        <Save size={32} className="text-white" />
+                      )}
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="mt-8 w-full grid grid-cols-2 gap-3">
-              <button 
+              <button
                 onClick={() => handleDownload("png")}
-                className="flex items-center justify-center gap-2 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-200 dark:shadow-none"
+                disabled={!qrUrl || isDownloading}
+                className="flex items-center justify-center gap-2 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-200 dark:shadow-none"
               >
-                <Download size={18} />
-                PNG
+                {isDownloading ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Download size={18} />
+                  </motion.div>
+                ) : (
+                  <Download size={18} />
+                )}
+                {isDownloading ? "..." : "PNG"}
               </button>
-              <button 
+              <button
                 onClick={handleSave}
-                className="flex items-center justify-center gap-2 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-emerald-200 dark:shadow-none"
+                disabled={!qrUrl || isSaving}
+                className="flex items-center justify-center gap-2 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all shadow-lg shadow-emerald-200 dark:shadow-none"
               >
-                <Save size={18} />
-                Сохранить
+                {isSaving ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Save size={18} />
+                  </motion.div>
+                ) : (
+                  <Save size={18} />
+                )}
+                {isSaving ? "Сохранение..." : "Сохранить"}
               </button>
             </div>
           </div>

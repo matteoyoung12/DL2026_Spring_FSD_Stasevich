@@ -154,14 +154,6 @@ export default function App() {
           )}
         </AnimatePresence>
       </main>
-
-      <footer className="mt-20 border-t border-zinc-200 dark:border-zinc-800 py-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-sm text-zinc-500">
-            © 2026 QR Craft. Сделано с ❤️ для devcraft lab.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

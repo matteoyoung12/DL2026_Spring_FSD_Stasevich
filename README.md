@@ -213,6 +213,4 @@ f:\DL2026_Spring_FSD_Stasevich\
 
 ---
 
-<div align="center">
-  <sub>Создано с ❤️ используя React, Express и SQLite</sub>
-</div>
+

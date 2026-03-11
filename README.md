@@ -80,21 +80,6 @@ cd DL2026_Spring_FSD_Stasevich
 npm install
 ```
 
-### Настройка окружения
-
-Создайте файл `.env.local` на основе `.env.example`:
-
-```bash
-cp .env.example .env.local
-```
-
-Заполните переменные окружения:
-
-```env
-GEMINI_API_KEY="your_gemini_api_key"
-APP_URL="http://localhost:3000"
-```
-
 ### Запуск
 
 ```bash

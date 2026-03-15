@@ -1,7 +1,5 @@
-<div align="center">
-  <img width="1200" height="475" alt="QR Craft Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
+# DL2026_Spring_FSD_Stasevich
 # QR Craft
 
 **Профессиональный генератор QR-кодов с кастомизацией, историей и аналитикой сканирований**
@@ -81,21 +79,6 @@ cd DL2026_Spring_FSD_Stasevich
 
 # Установка зависимостей
 npm install
-```
-
-### Настройка окружения
-
-Создайте файл `.env.local` на основе `.env.example`:
-
-```bash
-cp .env.example .env.local
-```
-
-Заполните переменные окружения:
-
-```env
-GEMINI_API_KEY="your_gemini_api_key"
-APP_URL="http://localhost:3000"
 ```
 
 ### Запуск
@@ -295,7 +278,7 @@ DL2026_Spring_FSD_Stasevich/
 
 ## 🤝 История разработки с AI-ассистентом
 
-Проект разрабатывался с помощью AI-ассистента **Qwen Code** (Alibaba Group). Ниже приведены все промты, использованные в процессе разработки:
+Проект разрабатывался с помощью AI-ассистента **Qwen Code** (Alibaba Group),**Gemini**,**Google AI Studio**.. Ниже приведены все промты, использованные в процессе разработки:
 
 ### Промты по порядку:
 
@@ -319,6 +302,3 @@ DL2026_Spring_FSD_Stasevich/
 
 ---
 
-<div align="center">
-  <sub>Создано с ❤️ используя React, Express и SQLite</sub>
-</div>

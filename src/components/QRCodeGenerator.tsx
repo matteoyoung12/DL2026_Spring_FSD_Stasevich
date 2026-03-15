@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import QRCode from "qrcode";
-import { QRType, QRConfig, WiFiData, VCardData } from "../types";
+import { QRType, QRConfig, WiFiData, VCardData, EmailData, SMSData, EventData } from "../types";
 import { HexColorPicker } from "react-colorful";
-import { 
-  Link, Type, Wifi, Contact, Download, Share2, 
-  Settings2, Palette, History as HistoryIcon, 
-  Check, Copy, Trash2, ExternalLink, Save,
-  Image as ImageIcon, X, ChevronDown
+import {
+  Link, Type, Wifi, Contact, Download,
+  Check, Copy, Trash2, Save,
+  Image as ImageIcon, X, ChevronDown, Mail, MessageSquare, Calendar,
+  Sparkles, ScanLine
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
@@ -16,16 +16,27 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const STYLE_PRESETS = [
+  { id: "classic", name: "Классика", icon: "📱", config: { fgColor: "#000000", bgColor: "#ffffff", level: "H" as const } },
+  { id: "modern", name: "Модерн", icon: "✨", config: { fgColor: "#4f46e5", bgColor: "#ffffff", level: "H" as const } },
+  { id: "elegant", name: "Элегант", icon: "💎", config: { fgColor: "#1e293b", bgColor: "#f8fafc", level: "H" as const } },
+  { id: "dark", name: "Тёмный", icon: "🌙", config: { fgColor: "#f1f5f9", bgColor: "#0f172a", level: "H" as const } },
+  { id: "gradient", name: "Градиент", icon: "🌈", config: { fgColor: "#6366f1", bgColor: "#ffffff", level: "H" as const, gradient: { enabled: true, color2: "#ec4899", type: "diagonal" as const } } },
+];
+
 export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
   const [type, setType] = useState<QRType>("url");
   const [content, setContent] = useState("");
   const [wifiData, setWifiData] = useState<WiFiData>({ ssid: "", encryption: "WPA", hidden: false });
   const [vcardData, setVcardData] = useState<VCardData>({ firstName: "", lastName: "", phone: "", email: "" });
-  
+  const [emailData, setEmailData] = useState<EmailData>({ to: "", subject: "", body: "" });
+  const [smsData, setSmsData] = useState<SMSData>({ phone: "", message: "" });
+  const [eventData, setEventData] = useState<EventData>({ title: "", location: "", description: "", startDate: "", endDate: "" });
+
   const [config, setConfig] = useState<QRConfig>({
     fgColor: "#000000",
     bgColor: "#ffffff",
-    level: "H", // Default to High for logos
+    level: "H",
     margin: 4,
     scale: 10,
     borderRadius: 0,
@@ -34,14 +45,25 @@ export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
       enabled: false,
       color2: "#4f46e5",
       type: "linear"
+    },
+    pattern: {
+      enabled: false,
+      type: "square"
+    },
+    eyeStyle: {
+      type: "square",
+      color: "#000000"
     }
   });
 
   const [showFgPicker, setShowFgPicker] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
+  const [showEyePicker, setShowEyePicker] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [activePreset, setActivePreset] = useState("classic");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -51,10 +73,17 @@ export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
     switch (type) {
       case "url": return content.startsWith("http") ? content : `https://${content}`;
       case "text": return content;
-      case "wifi": 
+      case "wifi":
         return `WIFI:S:${wifiData.ssid};T:${wifiData.encryption};P:${wifiData.password || ""};H:${wifiData.hidden ? "true" : "false"};;`;
       case "vcard":
         return `BEGIN:VCARD\nVERSION:3.0\nN:${vcardData.lastName};${vcardData.firstName}\nFN:${vcardData.firstName} ${vcardData.lastName}\nTEL;TYPE=CELL:${vcardData.phone}\nEMAIL:${vcardData.email}\nORG:${vcardData.organization || ""}\nTITLE:${vcardData.title || ""}\nURL:${vcardData.url || ""}\nEND:VCARD`;
+      case "email":
+        return `mailto:${emailData.to}?subject=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.body)}`;
+      case "sms":
+        return `smsto:${smsData.phone}:${smsData.message}`;
+      case "event":
+        const format = (d: string) => d ? new Date(d).toISOString().replace(/[-:]/g, "").split(".")[0] + "Z" : "";
+        return `BEGIN:VEVENT\nSUMMARY:${eventData.title}\nLOCATION:${eventData.location}\nDTSTART:${format(eventData.startDate)}\nDTEND:${format(eventData.endDate)}\nEND:VEVENT`;
       default: return "";
     }
   };
@@ -151,6 +180,11 @@ export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
     }
   };
 
+  const applyPreset = (preset: any) => {
+    setConfig(prev => ({ ...prev, ...preset.config }));
+    setActivePreset(preset.id);
+  };
+
   const handleDownload = async (format: "png" | "svg") => {
     if (!qrUrl) return;
     
@@ -205,23 +239,28 @@ export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
       {/* Left Column: Input & Config */}
       <div className="lg:col-span-7 space-y-6">
         {/* Type Selector */}
-        <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
-          {(["url", "text", "wifi", "vcard"] as QRType[]).map((t) => (
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: "url", icon: Link, label: "URL" },
+            { id: "text", icon: Type, label: "Текст" },
+            { id: "wifi", icon: Wifi, label: "WiFi" },
+            { id: "vcard", icon: Contact, label: "VCard" },
+            { id: "email", icon: Mail, label: "Email" },
+            { id: "sms", icon: MessageSquare, label: "SMS" },
+            { id: "event", icon: Calendar, label: "Событие" }
+          ].map(({ id, icon: Icon, label }) => (
             <button
-              key={t}
-              onClick={() => setType(t)}
+              key={id}
+              onClick={() => setType(id as QRType)}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all",
-                type === t 
-                  ? "bg-white dark:bg-zinc-700 shadow-sm text-indigo-600 dark:text-indigo-400" 
-                  : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                "flex items-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all",
+                type === id
+                  ? "bg-white dark:bg-zinc-700 shadow-sm text-indigo-600 dark:text-indigo-400 ring-2 ring-indigo-500/20"
+                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
               )}
             >
-              {t === "url" && <Link size={16} />}
-              {t === "text" && <Type size={16} />}
-              {t === "wifi" && <Wifi size={16} />}
-              {t === "vcard" && <Contact size={16} />}
-              <span className="capitalize">{t}</span>
+              <Icon size={16} />
+              <span>{label}</span>
             </button>
           ))}
         </div>
@@ -319,7 +358,135 @@ export default function QRCodeGenerator({ onSave }: { onSave: () => void }) {
               />
             </div>
           )}
+
+          {type === "email" && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Получатель</label>
+                <input
+                  type="email"
+                  placeholder="example@mail.com"
+                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950"
+                  value={emailData.to}
+                  onChange={(e) => setEmailData({ ...emailData, to: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Тема</label>
+                <input
+                  type="text"
+                  placeholder="Тема письма"
+                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950"
+                  value={emailData.subject}
+                  onChange={(e) => setEmailData({ ...emailData, subject: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Текст</label>
+                <textarea
+                  placeholder="Текст сообщения..."
+                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 min-h-[80px]"
+                  value={emailData.body}
+                  onChange={(e) => setEmailData({ ...emailData, body: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+
+          {type === "sms" && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Номер</label>
+                <input
+                  type="tel"
+                  placeholder="+7 (999) 000-00-00"
+                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950"
+                  value={smsData.phone}
+                  onChange={(e) => setSmsData({ ...smsData, phone: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Сообщение</label>
+                <textarea
+                  placeholder="Текст SMS..."
+                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 min-h-[80px]"
+                  value={smsData.message}
+                  onChange={(e) => setSmsData({ ...smsData, message: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+
+          {type === "event" && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Название</label>
+                <input
+                  type="text"
+                  placeholder="День рождения"
+                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950"
+                  value={eventData.title}
+                  onChange={(e) => setEventData({ ...eventData, title: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Начало</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950"
+                    value={eventData.startDate}
+                    onChange={(e) => setEventData({ ...eventData, startDate: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Окончание</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950"
+                    value={eventData.endDate}
+                    onChange={(e) => setEventData({ ...eventData, endDate: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Место</label>
+                <input
+                  type="text"
+                  placeholder="Москва, ул. Примерная, 1"
+                  className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950"
+                  value={eventData.location}
+                  onChange={(e) => setEventData({ ...eventData, location: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
         </motion.div>
+
+        {/* Style Presets */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold mb-4">
+            <Sparkles size={20} />
+            <h2>Быстрые стили</h2>
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+            {STYLE_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => applyPreset(preset)}
+                className={cn(
+                  "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all",
+                  activePreset === preset.id
+                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30"
+                    : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
+                )}
+              >
+                <span className="text-2xl">{preset.icon}</span>
+                <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{preset.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Customization Panel */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm space-y-6">

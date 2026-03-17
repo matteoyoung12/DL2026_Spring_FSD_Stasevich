@@ -33,6 +33,32 @@ export default function App() {
     }
   };
 
+  const toggleFavorite = async (id: string, favorite: boolean) => {
+    try {
+      await fetch(`/api/qr/${id}/favorite`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ favorite })
+      });
+      fetchHistory();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const updateNote = async (id: string, note: string) => {
+    try {
+      await fetch(`/api/qr/${id}/note`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note })
+      });
+      fetchHistory();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchHistory();
   }, []);
@@ -149,7 +175,7 @@ export default function App() {
                    </div>
                 </div>
               </div>
-              <History items={history} onDelete={deleteFromHistory} />
+              <History items={history} onDelete={deleteFromHistory} onToggleFavorite={toggleFavorite} onUpdateNote={updateNote} />
             </motion.div>
           )}
         </AnimatePresence>

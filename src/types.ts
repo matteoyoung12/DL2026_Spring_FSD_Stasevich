@@ -31,6 +31,7 @@ export interface QRCodeData {
   created_at: string;
   scan_count: number;
   favorite?: boolean;
+  note?: string;
 }
 
 export interface WiFiData {

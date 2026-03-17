@@ -15,9 +15,23 @@ db.exec(`
     type TEXT NOT NULL,
     config TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    scan_count INTEGER DEFAULT 0
+    scan_count INTEGER DEFAULT 0,
+    favorite INTEGER DEFAULT 0,
+    note TEXT
   );
 `);
+
+// Add missing columns for existing databases
+try {
+  db.exec("ALTER TABLE qr_codes ADD COLUMN favorite INTEGER DEFAULT 0");
+} catch (e) {
+  // Column already exists
+}
+try {
+  db.exec("ALTER TABLE qr_codes ADD COLUMN note TEXT");
+} catch (e) {
+  // Column already exists
+}
 
 async function startServer() {
   const app = express();
@@ -43,7 +57,8 @@ async function startServer() {
       const rows = db.prepare("SELECT * FROM qr_codes ORDER BY created_at DESC").all();
       res.json(rows.map(row => ({
         ...row,
-        config: JSON.parse(row.config as string)
+        config: JSON.parse(row.config as string),
+        favorite: !!row.favorite
       })));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch history" });
@@ -57,6 +72,28 @@ async function startServer() {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete" });
+    }
+  });
+
+  // API: Toggle favorite
+  app.put("/api/qr/:id/favorite", (req, res) => {
+    try {
+      const { favorite } = req.body;
+      db.prepare("UPDATE qr_codes SET favorite = ? WHERE id = ?").run(favorite ? 1 : 0, req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update favorite" });
+    }
+  });
+
+  // API: Update note
+  app.put("/api/qr/:id/note", (req, res) => {
+    try {
+      const { note } = req.body;
+      db.prepare("UPDATE qr_codes SET note = ? WHERE id = ?").run(note || null, req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update note" });
     }
   });
 

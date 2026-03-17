@@ -6,7 +6,7 @@ import {
   Link, Type, Wifi, Contact, Download,
   Check, Copy, Trash2, Save,
   Image as ImageIcon, X, ChevronDown, Mail, MessageSquare, Calendar,
-  Sparkles, ScanLine
+  Sparkles, ScanLine, Palette
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { clsx, type ClassValue } from "clsx";
